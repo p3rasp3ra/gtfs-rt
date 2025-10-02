@@ -2,6 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '4.0.0-SNAPSHOT'
 	id 'io.spring.dependency-management' version '1.1.7'
+    id("com.google.protobuf") version "0.9.5"
 }
 
 group = 'com.marszrut'
@@ -30,6 +31,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-kafka'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation("com.google.protobuf:protobuf-java:4.32.1")
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
