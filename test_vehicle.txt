@@ -1,0 +1,27 @@
+# GTFS-RT FeedEntity in ASCII text format for debugging
+# This is a human-readable representation of a protobuf message
+# Use with: curl -X POST http://localhost:8087/vp/f/ztp-feed/a/ztp-agency -H "Content-Type: text/plain" --data-binary @test_vehicle.txt
+
+id: "vehicle_test_001"
+vehicle {
+  trip {
+    trip_id: "trip_12345"
+    route_id: "route_67"
+    direction_id: 1
+    start_date: "20260109"
+    start_time: "14:30:00"
+    schedule_relationship: SCHEDULED
+  }
+  position {
+    latitude: 52.2297
+    longitude: 21.0122
+    bearing: 180.0
+    speed: 25.5
+  }
+  timestamp: 1736432000
+  stop_id: "stop_central_001"
+  current_status: STOPPED_AT
+  congestion_level: RUNNING_SMOOTHLY
+  occupancy_status: FEW_SEATS_AVAILABLE
+}
+

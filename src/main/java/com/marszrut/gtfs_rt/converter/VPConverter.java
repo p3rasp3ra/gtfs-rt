@@ -114,4 +114,59 @@ public class VPConverter {
                 .os(occupancyStatus)
                 .build();
     }
+
+    /**
+     * Converts domain VehiclePosition entity back to GTFS-RT FeedEntity.
+     * Used for serving aggregated feed to transit consumers.
+     *
+     * @param vp domain VehiclePosition entity
+     * @return GTFS-RT FeedEntity containing VehiclePosition
+     */
+    public GtfsRealtime.FeedEntity entityToFeedEntity(VehiclePosition vp) {
+        GtfsRealtime.TripDescriptor.Builder tripBuilder = GtfsRealtime.TripDescriptor.newBuilder();
+
+        if (vp.getTid() != null && !vp.getTid().isEmpty()) {
+            tripBuilder.setTripId(vp.getTid());
+        }
+        if (vp.getRid() != null && !vp.getRid().isEmpty()) {
+            tripBuilder.setRouteId(vp.getRid());
+        }
+        if (vp.getDid() != null) {
+            tripBuilder.setDirectionId(vp.getDid());
+        }
+        if (vp.getSd() != null && !vp.getSd().isEmpty()) {
+            tripBuilder.setStartDate(vp.getSd());
+        }
+        if (vp.getSt() != null && !vp.getSt().isEmpty()) {
+            tripBuilder.setStartTime(vp.getSt());
+        }
+
+        GtfsRealtime.Position.Builder positionBuilder = GtfsRealtime.Position.newBuilder()
+            .setLatitude(vp.getLat().floatValue())
+            .setLongitude(vp.getLon().floatValue());
+
+        GtfsRealtime.VehiclePosition.Builder vehicleBuilder = GtfsRealtime.VehiclePosition.newBuilder()
+            .setTrip(tripBuilder.build())
+            .setPosition(positionBuilder.build())
+            .setTimestamp(vp.getT().getEpochSecond());
+
+        if (vp.getSid() != null && !vp.getSid().isEmpty()) {
+            vehicleBuilder.setStopId(vp.getSid());
+        }
+
+        vehicleBuilder.setCurrentStatus(
+            GtfsRealtime.VehiclePosition.VehicleStopStatus.forNumber(vp.getSs())
+        );
+
+        if (vp.getOs() != null) {
+            vehicleBuilder.setOccupancyStatus(
+                GtfsRealtime.VehiclePosition.OccupancyStatus.forNumber(vp.getOs())
+            );
+        }
+
+        return GtfsRealtime.FeedEntity.newBuilder()
+            .setId(vp.getVid())
+            .setVehicle(vehicleBuilder.build())
+            .build();
+    }
 }
