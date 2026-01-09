@@ -1,4 +1,4 @@
-HELP.md
+docs/HELP.md
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
@@ -91,3 +91,6 @@ logs/
 *.pem
 *.key
 secrets/
+
+### Docker ###
+.dockerignore

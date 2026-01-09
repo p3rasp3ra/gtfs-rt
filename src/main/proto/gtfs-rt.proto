@@ -1,0 +1,413 @@
+syntax = "proto2";
+
+package transit_realtime;
+
+option java_package = "com.google.transit.realtime";
+option java_outer_classname = "GtfsRealtime";
+
+// The contents of a feed message.
+// A feed is a continuous stream of feed messages. Each message in the stream is
+// obtained as a response to an appropriate HTTP GET request.
+// A feed must be published using version 2.0 of the protocol.
+//
+// A feed message may contain either one or more feed entities, or a feed
+// header.
+//
+// Feed messages must be serialized using Protocol Buffers.
+message FeedMessage {
+  // Metadata about the feed, included in feed messages.
+  required FeedHeader header = 1;
+
+  // Contents of the feed.
+  repeated FeedEntity entity = 2;
+}
+
+// Metadata about a feed, included in feed messages.
+message FeedHeader {
+  // Version of the feed specification.
+  // The current version is 2.0.
+  required string gtfs_realtime_version = 1;
+
+  // Determines whether the feed should be processed incrementally.
+  enum Incrementality {
+    FULL_DATASET = 0;
+    DIFFERENTIAL = 1;
+  }
+  optional Incrementality incrementality = 2 [default = FULL_DATASET];
+
+  // The timestamp of this feed message.
+  optional uint64 timestamp = 3;
+}
+
+// A definition (or update) of an entity in the feed.
+message FeedEntity {
+  // The unique identifier for the entity.
+  required string id = 1;
+
+  // Whether this entity is to be deleted. Relevant only for incremental
+  // fetches.
+  optional bool is_deleted = 2 [default = false];
+
+  // Data about the entity itself. Exactly one of the following fields must be
+  // present (unless the entity is being deleted).
+  optional TripUpdate trip_update = 3;
+  optional VehiclePosition vehicle = 4;
+  optional Alert alert = 5;
+}
+
+//
+// Entities used in the feed.
+//
+
+// A trip update.
+//
+// Real-time update on the progress of a vehicle along a trip.
+// Please refer to the trip_updates.txt file in the GTFS feed for clarification
+// on the concepts of trip, route, start_date and start_time.
+message TripUpdate {
+  // The Trip that this message applies to. There can be at most one
+  // TripUpdate entity for each trip active at any given time.
+  required TripDescriptor trip = 1;
+
+  // Information about the arrival and departure times of a vehicle along a
+  // trip.
+  repeated StopTimeUpdate stop_time_update = 2;
+
+  // The vehicle that is serving this trip.
+  optional VehicleDescriptor vehicle = 3;
+
+  // The timestamp when the trip update was received by the feed producer.
+  // For create/update operations, optional since Mon, May 31, 2021
+  // For delete operations, required since Mon, May 31, 2021
+  optional uint64 timestamp = 4;
+
+  // The type of delay, if the trip is running ahead of schedule.
+  // This field is never populated in schedule adjustments feed.
+  enum DelayType {
+    // The vehicle is on schedule.
+    ON_SCHEDULE = 0;
+    // The vehicle is running ahead of schedule.
+    AHEAD_OF_SCHEDULE = 1;
+    // The vehicle is running behind schedule.
+    BEHIND_SCHEDULE = 2;
+  }
+  optional DelayType delay_type = 5 [default = ON_SCHEDULE];
+}
+
+// Real-time update for arrival and departure events for a given stop on a
+// trip. Updates can be supplied for both past and future events.
+//
+// The producer is allowed to drop updates for past events.
+message StopTimeUpdate {
+  // The stop sequence index of the stop this update is for.
+  // The stop sequence index is defined in the GTFS stop_times.txt file.
+  // It must be provided but can be set to 0 for departure-only real-time
+  // updates (when stop_id is provided).
+  optional uint32 stop_sequence = 1;
+
+  // The stop that this update is for.
+  // The stop_id is defined in the GTFS stops.txt file.
+  // It must be provided but can be set to an empty string for departure-only
+  // real-time updates (when stop_sequence is provided).
+  optional string stop_id = 4;
+
+  // Information about the arrival and departure events for the stop.
+  optional StopTimeEvent arrival = 2;
+  optional StopTimeEvent departure = 3;
+
+  // The schedule relationship for this stop time update.
+  // This field is never populated in schedule adjustments feed.
+  enum ScheduleRelationship {
+    // The vehicle is proceeding according to the schedule.
+    SCHEDULED = 0;
+    // The stop is skipped, i.e., the vehicle will not stop at this stop.
+    SKIPPED = 1;
+    // No data is given for this stop. The main intention for this value is to
+    // give the passenger a hint that the ride is not canceled.
+    NO_DATA = 2;
+  }
+  optional ScheduleRelationship schedule_relationship = 5 [default = SCHEDULED];
+}
+
+// Timing information for a single predicted event (either arrival or
+// departure).
+// Timing consists of delay and/or estimated time, and uncertainty.
+// - delay should be used when the prediction is given relative to some
+//   existing schedule in GTFS.
+// - time should be given if the prediction has no notion of schedule in GTFS
+//   (e.g. for a trip that is not scheduled, or a trip that is effective
+//   added).
+// - uncertainty applies equally to both time and delay.
+//
+// Note that time and delay can be specified at the same time: in that case,
+// the great of the two should be used.
+//
+// The uncertainty applies to the predicted time, not to the delay (the
+// schedule is assumed to be punctual).
+message StopTimeEvent {
+  // Delay (in seconds) can be positive (meaning that the vehicle is late) or
+  // negative (meaning that the vehicle is ahead of schedule).
+  // A delay of 0 means that the vehicle is exactly on time.
+  optional int32 delay = 1;
+
+  // Estimated time of arrival or departure.
+  // This value should be provided as a POSIX timestamp (i.e., the number of
+  // seconds since January 1st 1970 00:00:00 UTC).
+  optional int64 time = 2;
+
+  // Uncertainty of the prediction.
+  // The uncertainty is a value in seconds.
+  // It represents the expected error in the prediction.
+  // For example, a value of 300 means that the prediction is expected to be
+  // accurate within 5 minutes.
+  optional int32 uncertainty = 3;
+}
+
+// Real-time positioning information for a given vehicle.
+message VehiclePosition {
+  // The Trip that this vehicle is serving.
+  // Can be empty or partial if the vehicle can not be identified with a given
+  // trip instance.
+  optional TripDescriptor trip = 1;
+
+  // Current position of the vehicle.
+  optional Position position = 2;
+
+  // The stop that the vehicle is currently located at.
+  // The stop_id must be provided.
+  optional string stop_id = 3;
+
+  // The status of the vehicle in relation to the stop it is currently at.
+  // Ignored if stop_id is not provided.
+  enum VehicleStopStatus {
+    // The vehicle is on the way to the stop.
+    IN_TRANSIT_TO = 0;
+    // The vehicle is at the stop.
+    STOPPED_AT = 1;
+  }
+  optional VehicleStopStatus current_status = 4 [default = IN_TRANSIT_TO];
+
+  // The timestamp when the position was measured.
+  optional uint64 timestamp = 5;
+
+  // The congestion level that the vehicle is experiencing.
+  enum CongestionLevel {
+    UNKNOWN_CONGESTION_LEVEL = 0;
+    RUNNING_SMOOTHLY = 1;
+    STOP_AND_GO = 2;
+    CONGESTION = 3;
+    SEVERE_CONGESTION = 4;
+  }
+  optional CongestionLevel congestion_level = 6;
+
+  // The occupancy status of the vehicle.
+  enum OccupancyStatus {
+    // The vehicle is empty.
+    EMPTY = 0;
+    // The vehicle has many seats available.
+    MANY_SEATS_AVAILABLE = 1;
+    // The vehicle has few seats available.
+    FEW_SEATS_AVAILABLE = 2;
+    // The vehicle is standing room only.
+    STANDING_ROOM_ONLY = 3;
+    // The vehicle is crushed standing room only.
+    CRUSHED_STANDING_ROOM_ONLY = 4;
+    // The vehicle is full.
+    FULL = 5;
+    // The vehicle is not accepting passengers.
+    NOT_ACCEPTING_PASSENGERS = 6;
+  }
+  optional OccupancyStatus occupancy_status = 7;
+
+  // A text description of the occupancy status.
+  // This field is intended to be used as a fallback for systems that do not
+  // support the OccupancyStatus enum.
+  optional string occupancy_text = 8;
+}
+
+// An alert, indicating some sort of incident in the public transit network.
+message Alert {
+  // Time when the alert should be shown to the user.
+  // If not provided, the alert will be shown as long as it is present in the
+  // feed.
+  repeated TimeRange active_period = 1;
+
+  // Entities that are affected by this alert.
+  repeated EntitySelector informed_entity = 5;
+
+  // The cause of this alert.
+  enum Cause {
+    UNKNOWN_CAUSE = 1;
+    OTHER_CAUSE = 2;
+    TECHNICAL_PROBLEM = 3;
+    STRIKE = 4;
+    DEMONSTRATION = 5;
+    ACCIDENT = 6;
+    HOLIDAY = 7;
+    WEATHER = 8;
+    MAINTENANCE = 9;
+    CONSTRUCTION = 10;
+    POLICE_ACTIVITY = 11;
+    MEDICAL_EMERGENCY = 12;
+  }
+  optional Cause cause = 6 [default = UNKNOWN_CAUSE];
+
+  // The effect of this alert on the affected entities.
+  enum Effect {
+    NO_SERVICE = 1;
+    REDUCED_SERVICE = 2;
+    SIGNIFICANT_DELAYS = 3;
+    DETOUR = 4;
+    ADDITIONAL_SERVICE = 5;
+    MODIFIED_SERVICE = 6;
+    OTHER_EFFECT = 7;
+    UNKNOWN_EFFECT = 8;
+    STOP_MOVED = 9;
+  }
+  optional Effect effect = 7 [default = UNKNOWN_EFFECT];
+
+  // The URL which provides additional information about the alert.
+  optional TranslatedString url = 8;
+
+  // A header for the alert.
+  optional TranslatedString header_text = 10;
+
+  // A description of the alert.
+  optional TranslatedString description_text = 11;
+}
+
+//
+// General-purpose types used in the feed.
+//
+
+// A time interval. The interval is considered active at time t if
+// t >= start and t < end.
+message TimeRange {
+  // Start time, in POSIX time (i.e., number of seconds since January 1st 1970
+  // 00:00:00 UTC).
+  // If missing, the interval starts at minus infinity.
+  optional uint64 start = 1;
+
+  // End time, in POSIX time (i.e., number of seconds since January 1st 1970
+  // 00:00:00 UTC).
+  // If missing, the interval ends at plus infinity.
+  optional uint64 end = 2;
+}
+
+// A position.
+message Position {
+  // Degrees North, in the WGS-84 coordinate system.
+  required float latitude = 1;
+
+  // Degrees East, in the WGS-84 coordinate system.
+  required float longitude = 2;
+
+  // Bearing, in degrees, clockwise from North, i.e., 0 is North and 90 is
+  // East.
+  // This can be omitted if the vehicle is not moving.
+  optional float bearing = 3;
+
+  // Odometer value, in meters.
+  optional double odometer = 4;
+
+  // Momentary speed measured by the vehicle, in meters per second.
+  optional float speed = 5;
+}
+
+// A descriptor that identifies an instance of a GTFS trip, or all instances of
+// a trip along a route.
+// - To specify a single trip instance, the trip_id (and if necessary,
+//   start_date) is provided.
+// - To specify all the trips along a given route, the route_id is provided.
+message TripDescriptor {
+  // The trip_id from the GTFS feed that this selector refers to.
+  // For non-frequency-based trips, this field is enough to uniquely identify
+  // the trip. For frequency-based trip, start_time and start_date might also be
+  // necessary.
+  optional string trip_id = 1;
+
+  // The route_id from the GTFS feed that this selector refers to.
+  optional string route_id = 5;
+
+  // The direction_id from the GTFS feed that this selector refers to.
+  optional uint32 direction_id = 6;
+
+  // The start time of the trip, in H:M:S or HH:MM:SS format.
+  // The time is measured from "noon minus 12h" of the service day.
+  // For trips that span multiple service days, the start time may be greater
+  // than 24:00:00.
+  optional string start_time = 2;
+
+  // The start date of the trip, in YYYYMMDD format.
+  optional string start_date = 3;
+
+  // The schedule relationship for this trip.
+  // This field is never populated in schedule adjustments feed.
+  enum ScheduleRelationship {
+    // The vehicle is proceeding according to the schedule.
+    SCHEDULED = 0;
+    // The trip has been added to the schedule.
+    ADDED = 1;
+    // The trip has been removed from the schedule.
+    CANCELED = 2;
+    // The trip has been replaced by another trip.
+    REPLACEMENT = 3;
+  }
+  optional ScheduleRelationship schedule_relationship = 4 [default = SCHEDULED];
+}
+
+// A descriptor that identifies a single vehicle.
+message VehicleDescriptor {
+  // Internal identifier of the vehicle. Should be unique per vehicle.
+  optional string id = 1;
+
+  // User-visible label for the vehicle.
+  optional string label = 2;
+
+  // The license plate of the vehicle.
+  optional string license_plate = 3;
+}
+
+// A selector for an entity in a GTFS feed.
+message EntitySelector {
+  // The agency_id of the agency that this selector refers to.
+  optional string agency_id = 1;
+
+  // The route_id of the route that this selector refers to.
+  optional string route_id = 2;
+
+  // The type of the route that this selector refers to.
+  // See the route_type field in the GTFS routes.txt file for a list of valid
+  // values.
+  optional int32 route_type = 3;
+
+  // The trip that this selector refers to.
+  optional TripDescriptor trip = 4;
+
+  // The stop that this selector refers to.
+  optional string stop_id = 5;
+}
+
+// An internationalized message containing per-language versions of a snippet of
+// text or a URL.
+// One of the strings from a message will be selected based on the following rules:
+// 1. If the user's preferred language is available in the translation, it will
+//    be returned.
+// 2. If the user's preferred language is not available, the first available
+//    translation will be returned.
+// 3. If no translations are available, an empty string will be returned.
+message TranslatedString {
+  // A list of translations.
+  repeated Translation translation = 1;
+}
+
+// A localized string with its language.
+message Translation {
+  // The text of the translation.
+  required string text = 1;
+
+  // The language of the translation.
+  // See http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry
+  // for a list of valid language tags.
+  optional string language = 2;
+}

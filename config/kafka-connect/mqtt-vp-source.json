@@ -1,0 +1,18 @@
+{
+  "name": "mqtt-vehicle-position-source",
+  "config": {
+    "connector.class": "io.confluent.connect.mqtt.MqttSourceConnector",
+    "tasks.max": "1",
+    "mqtt.server.uri": "tcp://mqtt-broker:1883",
+    "mqtt.topics": "ingest/vp/#",
+    "kafka.topic": "gtfsrt.vp.raw",
+    "mqtt.qos": "1",
+    "mqtt.clean.session.enabled": "true",
+    "mqtt.connection.timeout": "30",
+    "mqtt.keepalive.interval.seconds": "60",
+    "mqtt.session.clean": "true",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.converters.ByteArrayConverter"
+  }
+}
+

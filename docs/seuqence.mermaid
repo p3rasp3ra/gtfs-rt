@@ -1,0 +1,58 @@
+sequenceDiagram
+    participant DA as Driver App
+    participant AS as **Auth Service**
+    participant MQB as MQTT Broker
+    participant KC as Kafka Connect
+    participant KB as Kafka Backbone
+    participant VP as **VehiclePosition Processor (Fast Path)**
+    participant HW as **History Writer (Slow Path)**
+    participant RC as Redis Cache
+    participant DSP as **Digitransit Publisher Service**
+    participant API as **Public API Service**
+    participant GM as Google Maps / Consumer
+    participant HSL as HSL DT Consumer
+    participant PG as Postgres/TimescaleDB
+
+DA->>AS: 1. Login (U/P)
+AS-->>DA: 1.1. Return JWT
+
+DA->>MQB: 2. CONNECT (TLS, JWT in PASSWORD)
+MQB->>AS: 2.1. Verify JWT
+AS-->>MQB: 2.2. JWT Valid / OK
+MQB-->>DA: 2.3. CONNACK
+
+DA->>MQB: 3. PUBLISH (Raw VP PBF to /ingest/#)
+MQB->>KC: 3.1. Route Message
+
+KC->>KB: 3.2. Produce raw PBF to 'gtfsrt.vp.raw'
+
+par Parallel Consumers
+    rect rgb(111, 25, 25)
+    VP->>KB: 4. Consume PBF (Fast Consumer Group)
+    VP->>VP: 4.1. Deserialize & FULL Enrich (Static DB Lookup)
+    VP->>RC: 4.2. Set VP State (Overwrite fully enriched object)
+    end
+
+    rect rgb(48, 43, 113)
+    RC->>+DSP: 4.3. Keyspace Notification: VP Key Changed
+    DSP->>RC: 4.4. Get Fully Enriched VP State
+    DSP->>-MQB: 4.5. PUBLISH PBF to HSL Topic
+    end
+    MQB->>HSL: 4.6. Deliver Message
+
+
+    rect rgb(3,93,94)
+    HW->>KB: 5. Consume PBF (Slow Consumer Group)
+    HW->>HW: 5.1. Deserialize & Enrich (Batching)
+    HW->>PG: 5.2. BATCH INSERT into TimescaleDB
+    PG-->>HW: 5.3. Acknowledge Batch Commit
+    end
+end
+
+rect rgb(111, 25, 25)
+loop Polling Cycle (HTTP)
+GM->>API: 6.1. HTTP GET /feed.pb (If-Modified-Since)
+API->>RC: 6.2. Get ALL States & Aggregate PBF
+API-->>GM: 6.3. Return PBF / 304
+end
+end

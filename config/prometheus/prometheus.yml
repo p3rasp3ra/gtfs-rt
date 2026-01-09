@@ -1,0 +1,56 @@
+# Prometheus Configuration for GTFS-RT System
+# This configuration should be added to your existing Prometheus instance
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Add these scrape jobs to your existing Prometheus configuration
+scrape_configs:
+  # MQTT Broker Metrics (via Mosquitto Exporter)
+  - job_name: 'gtfs-rt-mqtt-broker'
+    static_configs:
+      - targets: ['localhost:9234']
+        labels:
+          service: 'mosquitto'
+          component: 'mqtt-broker'
+          project: 'gtfs-rt'
+
+  # Spring Boot Application Metrics
+  - job_name: 'gtfs-rt-application'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['localhost:8080']
+        labels:
+          service: 'gtfs-rt-app'
+          component: 'spring-boot'
+          project: 'gtfs-rt'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Kafka Metrics
+  - job_name: 'gtfs-rt-kafka'
+    static_configs:
+      - targets: ['localhost:9308']
+        labels:
+          service: 'kafka'
+          component: 'kafka-broker'
+          project: 'gtfs-rt'
+
+  # Redis Metrics
+  - job_name: 'gtfs-rt-redis'
+    static_configs:
+      - targets: ['localhost:9121']
+        labels:
+          service: 'redis'
+          component: 'cache'
+          project: 'gtfs-rt'
+
+  # PostgreSQL/TimescaleDB Metrics
+  - job_name: 'gtfs-rt-timescaledb'
+    static_configs:
+      - targets: ['localhost:9187']
+        labels:
+          service: 'timescaledb'
+          component: 'database'
+          project: 'gtfs-rt'

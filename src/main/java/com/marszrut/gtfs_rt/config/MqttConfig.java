@@ -1,0 +1,64 @@
+package com.marszrut.gtfs_rt.config;
+
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.integration.channel.DirectChannel;
+import org.springframework.integration.core.MessageProducer;
+import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
+import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
+import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
+import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.MessageHandler;
+
+@Configuration
+public class MqttConfig {
+
+    private final MqttProperties mqttProperties;
+
+    public MqttConfig(MqttProperties mqttProperties) {
+        this.mqttProperties = mqttProperties;
+    }
+
+    @Bean
+    public MqttPahoClientFactory mqttClientFactory() {
+        DefaultMqttPahoClientFactory factory = new DefaultMqttPahoClientFactory();
+        MqttConnectOptions options = new MqttConnectOptions();
+        options.setServerURIs(new String[] { mqttProperties.getUrl() });
+        options.setAutomaticReconnect(true);
+        options.setCleanSession(true);
+        options.setConnectionTimeout(10);
+        factory.setConnectionOptions(options);
+        return factory;
+    }
+
+    @Bean
+    public MessageChannel mqttInputChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    public MessageProducer inbound() {
+        MqttPahoMessageDrivenChannelAdapter adapter =
+                new MqttPahoMessageDrivenChannelAdapter(mqttProperties.getClientId(), mqttClientFactory(),
+                        mqttProperties.getTopics());
+        adapter.setCompletionTimeout(5000);
+        adapter.setConverter(new DefaultPahoMessageConverter());
+        adapter.setQos(1);
+        adapter.setOutputChannel(mqttInputChannel());
+        return adapter;
+    }
+
+    @Bean
+    @ServiceActivator(inputChannel = "mqttInputChannel")
+    public MessageHandler handler() {
+        return message -> {
+            // We will implement the message handling logic in a separate service
+            System.out.println("Received message from topic: " + message.getHeaders().get("mqtt_receivedTopic"));
+            // For now, we just print the payload
+            // System.out.println(new String((byte[]) message.getPayload()));
+        };
+    }
+}
