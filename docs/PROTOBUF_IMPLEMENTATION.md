@@ -36,13 +36,13 @@ Successfully implemented protobuf support for the Vehicle Position REST endpoint
 
 ### 5. **Testing Tools**
 
-#### **Python Script** (`test_proto_vp.py`)
+#### **Python Script** (`scripts/test_proto_vp.py`)
 ```bash
 # Install dependencies
 pip install gtfs-realtime-bindings requests
 
 # Run test
-python test_proto_vp.py
+python scripts\test_proto_vp.py
 ```
 
 #### **Java Test File Generator** (`ProtoTestFileGenerator.java`)
@@ -53,10 +53,10 @@ javac -cp .:../../../build/libs/* com/marszrut/gtfs_rt/util/ProtoTestFileGenerat
 java -cp .:../../../build/libs/* com.marszrut.gtfs_rt.util.ProtoTestFileGenerator
 ```
 
-#### **cURL Script** (`test-proto-vp.bat`)
+#### **cURL Script** (`scripts/test-proto-vp.bat`)
 ```bash
 # After generating test_vehicle.pb with Java or Python
-test-proto-vp.bat
+scripts\test-proto-vp.bat
 ```
 
 ## Usage Examples
