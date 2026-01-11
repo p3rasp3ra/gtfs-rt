@@ -9,7 +9,7 @@ echo [1/3] Testing POST with ASCII text format FeedEntity...
 echo.
 curl -X POST http://localhost:8087/vp/f/ztp-feed/a/ztp-agency ^
   -H "Content-Type: text/plain" ^
-  --data-binary @test_vehicle.txt ^
+  --data-binary @scripts\test_vehicle.txt ^
   -w "\nHTTP Status: %%{http_code}\n" ^
   -v
 
