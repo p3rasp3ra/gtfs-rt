@@ -101,6 +101,7 @@ services:
     ports:
       - "1883:1883"  # Standard MQTT port
       - "8883:8883"  # Secured MQTTS/TLS port
+      - "9001:9001"  # MQTT websockets
     volumes:
       - ./config/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - ./config/mqtt/data:/mosquitto/data
