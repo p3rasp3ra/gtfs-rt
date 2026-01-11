@@ -19,7 +19,7 @@ Real-time vehicle position processing system with GTFS-RT protobuf support, MQTT
    scripts\test-mqtt.bat
    ```
 
-📖 **[Complete Getting Started Guide](docs/GETTING_STARTED.md)**
+📖 **[Complete Getting Started Guide](GETTING_STARTED.md)**
 
 ## 📊 Architecture
 
@@ -45,22 +45,22 @@ Kafka Topic (vp-proto)
 ## 📚 Documentation
 
 ### Getting Started
-- **[Quick Start Guide](docs/GETTING_STARTED.md)** - Get up and running in 3 steps
-- **[MQTT Testing Guide](docs/MQTT_TESTING.md)** - How to test MQTT integration
+- **[Quick Start Guide](GETTING_STARTED.md)** - Get up and running in 3 steps
+- **[MQTT Testing Guide](MQTT_TESTING.md)** - How to test MQTT integration
 
 ### Architecture & Implementation
-- **[MQTT Implementation](docs/MQTT_IMPLEMENTATION.md)** - MQTT consumer architecture
-- **[Protobuf API](docs/PROTOBUF_IMPLEMENTATION.md)** - REST API with protobuf support
-- **[Feed Aggregation](docs/FEED_AGGREGATION.md)** - Serving aggregated feeds
+- **[MQTT Implementation](MQTT_IMPLEMENTATION.md)** - MQTT consumer architecture
+- **[Protobuf API](PROTOBUF_IMPLEMENTATION.md)** - REST API with protobuf support
+- **[Feed Aggregation](FEED_AGGREGATION.md)** - Serving aggregated feeds
 
 ### Existing Documentation
-- **[Deployment Configuration](docs/DEPLOYMENT_CONFIG.md)**
-- **[Deployment Modes](docs/DEPLOYMENT_MODES.md)**
-- **[DLQ Implementation](docs/DLQ_IMPLEMENTATION.md)**
-- **[Flyway Migration](docs/FLYWAY_MIGRATION_STATUS.md)**
-- **[Implementation Status](docs/IMPLEMENTATION_STATUS.md)**
-- **[Infrastructure](docs/INFRASTRUCTURE_COMPLETE.md)**
-- **[Setup Summary](docs/SETUP_SUMMARY.md)**
+- **[Deployment Configuration](DEPLOYMENT_CONFIG.md)**
+- **[Deployment Modes](DEPLOYMENT_MODES.md)**
+- **[DLQ Implementation](DLQ_IMPLEMENTATION.md)**
+- **[Flyway Migration](FLYWAY_MIGRATION_STATUS.md)**
+- **[Implementation Status](IMPLEMENTATION_STATUS.md)**
+- **[Infrastructure](INFRASTRUCTURE_COMPLETE.md)**
+- **[Setup Summary](SETUP_SUMMARY.md)**
 
 ## 🛠️ Testing Scripts
 
@@ -202,5 +202,5 @@ This project is part of the marszrut.com realtime zoo 🦁
 
 ---
 
-**Need help?** Check the [Getting Started Guide](docs/GETTING_STARTED.md) or [MQTT Testing Guide](docs/MQTT_TESTING.md)
+**Need help?** Check the [Getting Started Guide](GETTING_STARTED.md) or [MQTT Testing Guide](MQTT_TESTING.md)
 
