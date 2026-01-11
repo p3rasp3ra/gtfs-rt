@@ -3,10 +3,10 @@ services:
   # GTFS-RT APPLICATION
   # ------------------------------------------------------------------
   gtfs-rt:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-    image: gtfs-rt:latest
+    #    build:
+    #      context: .
+    #      dockerfile: Dockerfile
+    image: p3rasp3ra/gtfs-rt:latest
     hostname: gtfs-rt
     container_name: gtfs-rt
     ports:
@@ -113,8 +113,9 @@ services:
       POSTGRES_USER: gtfsuser
       POSTGRES_PASSWORD: gtfs_password
       POSTGRES_DB: gtfs_realtime_db
+      PGDATA: /var/lib/postgresql/gtfs-rt-data
     volumes:
-      - postgres-data:/var/lib/postgresql
+      - postgres-data:/var/lib/postgresql/gtfs-rt-data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U gtfsuser -d gtfs_realtime_db"]
       interval: 10s

@@ -1,0 +1,90 @@
+rt.marszrut.com {
+        # TLS (Let's Encrypt)
+        tls admin@marszrut.com
+
+        # Compression
+        encode gzip zstd
+
+        # Security headers
+        header {
+                Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+                X-Content-Type-Options "nosniff"
+                X-Frame-Options "DENY"
+                Referrer-Policy "no-referrer"
+        }
+
+        # MQTT WebSocket endpoint for driver app (WSS)
+        handle /mqtt* {
+                reverse_proxy mqtt-broker:9001 {
+                        header_up Host {http.request.host}
+                        header_up X-Real-IP {http.request.remote}
+                        header_up X-Forwarded-Proto {http.request.scheme}
+                }
+        }
+
+        # Health endpoint
+        @health path /actuator/health /actuator/health/
+        reverse_proxy @health gtfs-rt:8088
+
+        # Metrics endpoints for Prometheus
+        handle_path /actuator/prometheus* {
+                reverse_proxy gtfs-rt:8088
+        }
+        handle_path /metrics* {
+                reverse_proxy gtfs-rt:8088
+        }
+
+        # Main application traffic
+        handle {
+                reverse_proxy gtfs-rt:8088 {
+                        header_up Host {http.request.host}
+                        header_up X-Real-IP {http.request.remote}
+                        header_up X-Forwarded-Proto {http.request.scheme}
+                }
+        }
+
+        # Access logging
+        log {
+                output file /var/log/caddy/rt-marszrut_access.log {
+                        roll_size 5MiB
+                        roll_keep 5
+                        roll_keep_for 168h
+                }
+                level INFO
+        }
+}
+
+http://rt.marszrut.com {
+        redir https://rt.marszrut.com{uri} permanent
+}
+
+# Kafka UI subdomain
+kafka.rt.marszrut.com {
+        tls admin@marszrut.com
+
+        # Basic auth (recommended - Kafka UI has no built-in auth)
+        basicauth {
+                admin $2a$14$HASH_YOUR_PASSWORD_HERE
+        }
+
+        encode gzip zstd
+
+        header {
+                Strict-Transport-Security "max-age=31536000; includeSubDomains"
+                X-Content-Type-Options "nosniff"
+        }
+
+        reverse_proxy kafka-ui:8080 {
+                header_up Host {http.request.host}
+                header_up X-Real-IP {http.request.remote}
+                header_up X-Forwarded-Proto {http.request.scheme}
+        }
+
+        log {
+                output file /var/log/caddy/kafka-ui_access.log {
+                        roll_size 5MiB
+                        roll_keep 3
+                }
+                level INFO
+        }
+}

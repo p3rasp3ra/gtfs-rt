@@ -6,7 +6,7 @@ build/
 !**/src/test/**/build/
 
 ### Environment files (keep template) ###
-.env
+config/.env
 .env.local
 .env.prod
 .env.production
@@ -92,7 +92,7 @@ logs/
 *~
 
 ### Security ###
-.env
+config/.env
 .env.local
 .env.*.local
 *.pem
