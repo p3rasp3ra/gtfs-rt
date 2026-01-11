@@ -5,6 +5,13 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+### Environment files (keep template) ###
+.env
+.env.local
+.env.prod
+.env.production
+!.env.example
+
 ### STS ###
 .apt_generated
 .classpath
