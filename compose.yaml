@@ -41,56 +41,52 @@ services:
     networks:
       - gtfs-network
 
-  kafka-connect:
-    image: confluentinc/cp-kafka-connect:7.6.0
-    hostname: kafka-connect
-    container_name: kafka-connect
-    depends_on:
-      kafka:
-        condition: service_healthy
-      mqtt-broker:
-        condition: service_started
+  # Kafka UI for monitoring topics and consumers
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    hostname: kafka-ui
+    container_name: kafka-ui
     ports:
-      - "8082:8082"
+      - "8080:8080"  # Kafka UI on port 8080 (Spring Boot app uses 8085, Kafka Connect uses 8082)
     environment:
-      # Use INTERNAL listener for Docker-to-Docker communication
-      CONNECT_BOOTSTRAP_SERVERS: "kafka:19093"
-      CONNECT_REST_PORT: 8082
-      CONNECT_REST_HOST_NAME: "0.0.0.0"
-      CONNECT_REST_ADVERTISED_HOST_NAME: "localhost"
-      CONNECT_REST_ADVERTISED_PORT: 8082
-      CONNECT_GROUP_ID: "kafka-connect-group"
-      CONNECT_CONFIG_STORAGE_TOPIC: "connect-configs"
-      CONNECT_OFFSET_STORAGE_TOPIC: "connect-offsets"
-      CONNECT_STATUS_STORAGE_TOPIC: "connect-status"
-      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
-      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
-      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
-      CONNECT_KEY_CONVERTER: "org.apache.kafka.connect.storage.StringConverter"
-      CONNECT_VALUE_CONVERTER: "org.apache.kafka.connect.storage.StringConverter"
-      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
-      CONNECT_LOG4J_ROOT_LOGLEVEL: "INFO"
-      CONNECT_LOG4J_LOGGERS: "org.apache.kafka.connect.runtime.rest=WARN,org.reflections=ERROR"
-      KAFKA_BOOTSTRAP_SERVERS: "kafka:19093"
+      DYNAMIC_CONFIG_ENABLED: "true"
+      KAFKA_CLUSTERS_0_NAME: gtfs-rt-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19093
+      # Kafka Connect integration for monitoring MQTT connectors
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: kafka-connect
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://kafka-connect:8082
+    depends_on:
+      - kafka
+    networks:
+      - gtfs-network
+
+  # ------------------------------------------------------------------
+  # 2. DATA INFRASTRUCTURE (Postgres & Redis)
+  # ------------------------------------------------------------------
+  postgres:
+    image: 'postgres:latest'
+    hostname: postgres
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: gtfsuser
+      POSTGRES_PASSWORD: gtfs_password
+      POSTGRES_DB: gtfs_realtime_db
     volumes:
-      - ./config/kafka-connect:/etc/kafka-connect
-      - ./config/kafka-connect/mqtt-vp-source.json:/etc/kafka-connect/configs/mqtt-vp-source.json
-      - ./config/kafka-connect/mqtt-tu-source.json:/etc/kafka-connect/configs/mqtt-tu-source.json
-      - ./config/kafka-connect/mqtt-sa-source.json:/etc/kafka-connect/configs/mqtt-sa-source.json
-      - ./config/kafka-connect/startup.sh:/usr/local/bin/startup.sh
-      - kafka-connect-plugins:/usr/share/confluent-hub-components
-    command:
-      - /bin/bash
-      - -c
-      - |
-        chmod +x /usr/local/bin/startup.sh
-        /usr/local/bin/startup.sh
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 90s
+      - postgres-data:/var/lib/postgresql
+    networks:
+      - gtfs-network
+
+  redis:
+    image: redis:7.2.5-alpine
+    hostname: redis
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
     networks:
       - gtfs-network
 
@@ -150,7 +146,7 @@ services:
     networks:
       - gtfs-network
 
-  # PostgreSQL/TimescaleDB Exporter for Prometheus metrics
+  # PostgreSQL Exporter for Prometheus metrics
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:latest
     hostname: postgres-exporter
@@ -158,59 +154,9 @@ services:
     ports:
       - "9187:9187"  # Prometheus metrics endpoint
     environment:
-      DATA_SOURCE_NAME: "postgresql://gtfsuser:gtfs_password@timescaledb:5432/gtfs_realtime_db?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://gtfsuser:gtfs_password@postgres:5432/gtfs_realtime_db?sslmode=disable"
     depends_on:
-      - timescaledb
-    networks:
-      - gtfs-network
-
-  # Kafka UI for monitoring topics and consumers
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    hostname: kafka-ui
-    container_name: kafka-ui
-    ports:
-      - "8080:8080"  # Kafka UI on port 8080 (Spring Boot app uses 8085, Kafka Connect uses 8082)
-    environment:
-      DYNAMIC_CONFIG_ENABLED: "true"
-      KAFKA_CLUSTERS_0_NAME: gtfs-rt-cluster
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:19093
-      # Kafka Connect integration for monitoring MQTT connectors
-      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: kafka-connect
-      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://kafka-connect:8082
-    depends_on:
-      - kafka
-      - kafka-connect
-    networks:
-      - gtfs-network
-
-  # ------------------------------------------------------------------
-  # 2. DATA INFRASTRUCTURE (Postgres/TimescaleDB & Redis)
-  # ------------------------------------------------------------------
-  timescaledb:
-    image: timescale/timescaledb:latest-pg16
-    hostname: timescaledb
-    container_name: timescaledb
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: gtfsuser
-      POSTGRES_PASSWORD: gtfs_password
-      POSTGRES_DB: gtfs_realtime_db
-    volumes:
-      - timescale-data:/var/lib/postgresql/data
-    networks:
-      - gtfs-network
-
-  redis:
-    image: redis:7.2.5-alpine
-    hostname: redis
-    container_name: redis
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
-    volumes:
-      - redis-data:/data
+      - postgres
     networks:
       - gtfs-network
 
@@ -223,6 +169,5 @@ networks:
 
 volumes:
   kafka-data:
-  timescale-data:
+  postgres-data:
   redis-data:
-  kafka-connect-plugins:
